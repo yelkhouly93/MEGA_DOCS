@@ -1,0 +1,1795 @@
+ARIES
+Interface Specifications
+Saudi German Hospitals KSA
+TrakCare – Mobile App Integration
+Interface Specification – {Project Name} 2.0
+ 
+Confidential and proprietary. Printing renders document uncontrolled. Page 2 of 52
+Document details
+Title: Interface Specification
+Interface: Mobile App
+Version: 1.0
+Created by: Zoe Chaoui
+Copyright © 2025 InterSystems Corporation. All rights reserved.
+This document is confidential and proprietary. Printing renders document uncontrolled.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 3 of 52
+Document controls
+Document Modifications
+Version Date Description of Change Modified By
+1.0 13-Oct-25 First Draft Zoe Chaoui
+Document Authorisation
+InterSystems Name Zoe Chaoui
+Role Technical Specialist
+Signature
+Date 13-Oct-25
+Saudi German Hospital KSA Name
+Role
+Signature
+Date
+Saudi German Hospital KSA Name
+Role
+Signature
+Date
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 4 of 52
+Contents
+1. Introduction .......................................................................................................................................6
+Overview.............................................................................................................................6
+Assumptions .......................................................................................................................6
+2. Business Workflows.........................................................................................................................7
+Overview.............................................................................................................................7
+Registration workflow .........................................................................................................7
+Initial patient registration ......................................................................................7
+Changing demographic information .....................................................................7
+Appointment workflows.......................................................................................................8
+Appointment booking ...........................................................................................8
+Appointment cancellation .....................................................................................8
+Patient billing ......................................................................................................................8
+Inpatient billing .....................................................................................................8
+Item approval status related workflow ................................................................................9
+3. REST Webservices..........................................................................................................................10
+Overview...........................................................................................................................10
+Inbound Format ................................................................................................................10
+Interface Components ......................................................................................................10
+Authentication...................................................................................................................11
+Supported Methods............................................................................................11
+Get Token...........................................................................................................11
+Patient Information ...........................................................................................................12
+Supported Methods............................................................................................12
+Get Patient .........................................................................................................12
+Create Patient ....................................................................................................13
+Send Patient SMS..............................................................................................14
+Get Patient Insurance ........................................................................................15
+Update Patient....................................................................................................16
+Appointment......................................................................................................................17
+Supported Methods............................................................................................17
+Get Facilities.......................................................................................................18
+Get Specialities ..................................................................................................19
+Get Care Providers.............................................................................................20
+Get Available Practitioner...................................................................................21
+Get Practitioner Schedule ..................................................................................22
+Get Patient Service ............................................................................................23
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 5 of 52
+Get Timeslots .....................................................................................................24
+Book Appointment..............................................................................................25
+Cancel Appointment...........................................................................................26
+Get Appointment History ....................................................................................26
+Billing ................................................................................................................................28
+Supported Methods............................................................................................28
+Get Service Price ...............................................................................................28
+Payment .............................................................................................................29
+Get Outstanding Amount....................................................................................30
+Settle Bill ............................................................................................................30
+Get Tax Invoice ..................................................................................................31
+Health ...............................................................................................................................32
+Supported Methods............................................................................................32
+Get Patient Episodes .........................................................................................33
+Get Medication Order.........................................................................................35
+Get Patient Allergies ..........................................................................................37
+Get Laboratory Order .........................................................................................39
+Get Radiology Order ..........................................................................................41
+Get Discharge Summary....................................................................................43
+Get Sick Leave...................................................................................................44
+Get Prescription..................................................................................................45
+Reports .............................................................................................................................46
+Supported Methods............................................................................................46
+Get Laboratory Report .......................................................................................47
+Get Radiology Report.........................................................................................48
+Get Discharge Summary Report ........................................................................48
+Get Sick Leave Report .......................................................................................49
+Get Tax Invoice Report ......................................................................................49
+Get Prescription Report......................................................................................50
+Interface Specification – {Project Name} 1.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 6 of 52
+1. Introduction
+Overview 
+The purpose of this document is to describe and define the functional and technical specifications for 
+the mobile application integration at Saudi German Hospital (SGH).
+This document defines both the specifications and technical design for the interface which consist of 
+inbound REST/JSON webservices methods. 
+Assumptions
+• IRIS For Health will be used as the middleware for interfacing with Mobile App.
+• REST/JSON will be used as interface format for the webservice methods. 
+• All inbound methods will use JWT authentication; tokens will be generated and signed by 
+InterSystems.
+• Connectivity to the Mobile App will be established through Saudi German - KSA network.
+• Standard HTTP response codes will be returned to the Mobile App according to best practices, 
+for example:
+ 200 – Request successful
+ 204 – No data found
+ 400 – Bad request (malformed or invalid payload)
+ 401 – Unauthorized (invalid or missing JWT)
+ 404 – Resource not found
+ 500 – Internal server error (TrakCare)
+• All the data related to laboratory and radiology results, and medications will be fetched and
+cached as soon a patient login API request is received. 
+• In case of a request for an endpoint related to the sections described above the data will be 
+fetched from the cache instead of real data from TrakCare database. The cache will be cleared 
+in case of patient inactivity (no API calls) within 5 minutes or a new patient login request for the 
+same patient.
+• Security and Privacy of patient data shared in the response payloads will be SGH responsibility 
+to make sure data is maintained in secure way in patient portal and mobile applications and 
+does not violate any patient privacy or law.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 7 of 52
+2. Business Workflows
+Overview
+This section outlines the functional use cases that involve integration points between the SGH Mobile 
+Application and the Trakcare Electronic Health Record (EHR) system. There are multiple streams of 
+data that will be sent unidirectionally for information purposes from TrakCare to the Mobile Application 
+for the patient to view. This will not have a workflow impact within TrakCare and therefore will not be 
+listed in this section. Please refer to the “REST webservices” section of this document for this 
+information.
+Registration workflow
+Initial patient registration
+On registration within the Mobile Application, the following process will be triggered: 
+• An API will be triggered to match the patient details entered with the TrakCare patient 
+database. 
+• If the patient record exists within TrakCare a confirmation will be returned to Mobile 
+Application.
+• However, if the patient record does not already exist within TrakCare, a new patient will be 
+created within TrakCare.
+o Saudi German KSA team will be responsible for data quality and to validating patient 
+information with NHIC webservices prior to requesting the patient creation in 
+TrakCare.
+• The data fields populated on patient registration will be defined according to the minimum 
+required dataset defined for registering a patient within TrakCare. 
+Changing demographic information
+Within the Mobile Application patient’s will be able to change certain demographic information which 
+does not impact functionality within TrakCare: 
+- Mobile number
+- Email
+- Gender
+- Date of birth
+- Marital status
+This information will be sent to TrakCare and updated within the patient’s demographic information on 
+the registration screen. For “gender” and “marital status” fields, the same dataset will need to be 
+maintained in both systems.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 8 of 52
+Appointment workflows
+Appointment booking
+To book appointments within TrakCare, a bidirectional exchange of data will be required following the 
+workflow below:
+• As a part of the master data sync patients will only be able to see certain departments 
+and care providers when choosing an appointment booking.
+• When the branch, department and care provider is selected this information is passed to 
+TrakCare.
+• TrakCare will return the slot information for that care provider / department combination 
+for the available and unavailable slots. 
+• The service selection logic will be run by TrakCare based on the information passed by 
+the Mobile Application and the patient’s recent episodes within the last 14-day period.
+• Once a patient selects a slot in the Mobile Application, the information is passed to 
+TrakCare and the appointment is booked for that patient.
+Appointment cancellation
+• Patients will be able to see all their future booked appointments within the Mobile 
+Application.
+• If they wish to cancel an appointment within the mobile application, this will trigger the 
+integration and the required appointment information will be passed to TrakCare,
+• The appointment is cancelled in TrakCare with a pre-defined “Reason for cancellation”.
+Patient billing
+For outpatient emergency episodes, TrakCare will send the patient’s “outstanding” amount per 
+service, from the patient bill line in TrakCare. This will apply to all order items (services) except any 
+order item with a Billing Group of “Pharmacy”. 
+For outpatient and emergency episodes, the following workflow will be followed:
+• Once services arrive onto a patient bill in TrakCare this will initiate the integration with the 
+mobile application.
+• TrakCare will send the outstanding amount for this patient to the mobile application per 
+service.
+• The mobile application will facilitate payment of the outstanding amount, either per item or 
+total amount.
+• Once a bill is paid the mobile application will send a confirmation of the payment to TrakCare 
+per item.
+• Within TrakCare this will either close the whole outstanding bill for the patient or remove that 
+specific item from the whole amount and record a payment against this item.
+• This will generate an invoice for the items that have been paid.
+Inpatient billing
+For inpatient episodes, TrakCare will not send item level billing information to the mobile application. 
+For inpatient episodes the following workflow will be followed:
+• The normal financial discharge workflow is followed to ensure correct items appear on the 
+patient bill with all the correct charges present.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 9 of 52
+• If the patient is going to pay via the mobile application, a collection will be recorded manually 
+in the system with an amount collected of zero. 
+• The total outstanding amount for this episode will be sent to the mobile application.
+• The mobile application will facilitate payment of this full amount only and send the payment 
+confirmation to TrakCare.
+• TrakCare will update this outstanding amount as paid. 
+Item approval status workflow
+Approval statuses will be shared on an item-by-item basis – however the list of statuses will be 
+defined during the development phase of this integration.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 10 of 52
+3. REST Webservices
+Overview
+To have this integration working as intended, InterSystems will provide webservices so that mobile 
+application can retrieve information from TrakCare on a real time basis.
+Inbound Format
+REST/JSON will be used for transmitting requests/responses and will follow all the standards and best 
+practices.
+Interface Components
+TRAKCARE
+IRIS For Health
+Mobile Application
+SGH Middleware
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 11 of 52
+Authentication
+Supported Methods
+Direction Method Description
+Inbound GetToken This method will return the JWT to be used to call other 
+TrakCare APIs
+Get Token
+Description: This method will be used to obtain a JSON Web Token (JWT) for authenticating all 
+subsequent Mobile App to TrakCare API calls. The Mobile App will issue an HTTPS POST to the 
+authentication endpoint. On success, the service returns a JSON payload containing the token and its 
+expired duration.
+Method: POST
+Content-Type: application/json
+Authentication type: API Key
+Response:
+• Access Token
+• Token Type
+• Expires In
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/authentication
+Headers:
+Content-Type: application/json
+API-Key: <to be defined>
+Sample request payload: {
+ "access_token": "encrypted token sample",
+ "token_type": "Bearer",
+ "expires_in": 3600
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 12 of 52
+Patient Information
+Supported Methods
+Direction Method Description
+Inbound GetPatient This method will return whether if the patient exists or not 
+in TrakCare. If the patient exists, basic information about 
+his/her demographic data will be shared.
+Inbound CreatePatient This method will be used to create a patient in TrakCare
+Inbound SendPatientSMS This method will be used to send an SMS to the patient
+Inbound GetPatientInsurance This method will return all the active insurances (Payor) 
+linked to a patient in TrakCare.
+Inbound UpdatePatient This method will update the information of an existing 
+patient in TrakCare (email, dob, gender, marital status).
+Get Patient
+Description: This method will return whether the patient exists in TrakCare or not. If the patient 
+exists, basic demographic information will be shared. 
+When the patient tries to log in using the “National ID” field, the system will always attempt to match a 
+patient with the same “National ID” in TrakCare. 
+If the patient log in using the “Mobile Number” field, a list of matching patients will be returned having 
+this mobile number in TrakCare.
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id
+• National Id (required if Mobile number is empty)
+• Mobile Number (required if National Id is empty)
+Response:
+• Patient Exist
+• Patient Id
+• MRN
+• National Id
+• First Name
+• Last Name
+• Mobile Number
+• E-mail
+• Address
+• Status
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 13 of 52
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/patient/login
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample request payload: {
+ "national_id": "041831731",
+"mobile_number": "",
+}
+Sample response payload: {
+"patient_exists": true,
+"patient_id": 123456,
+"urn": "0505050",
+"national_id ": "041831731",
+"first_name": "Test SGH",
+"last_name": "January",
+"mobile_number": "055555555",
+"email": "test@sgh.com",
+"address": "Block 1, Apt 123, Street 01",
+"status": "Success"
+}
+Create Patient
+Description: This method will be used to create a patient in TrakCare. Mapping for “Document type” 
+and “Nationality” properties will need to be mapped by SGH Mobile App team to match existing 
+TrakCare values. Default Payor and Plan ‘Self Pay’ will be assigned to all patients registered by this 
+endpoint.
+Status codes for errors will be discussed and agreed between InterSystems and SGH teams during 
+development of this endpoint.
+The parameters will be subject to change based on the minimum requirement in TrakCare
+Authentication Type: JWT Bearer Token Authentication
+Method: POST
+URL: /mobileapp/patient
+Parameters:
+• First Name
+• Family Name
+• Gender
+• Date of Birth
+• Marital Status
+• Nationality
+• Mobile Number
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 14 of 52
+• NationalID
+• Document Type [ Driving License, GCC Card, National ID, Others, Passport ]
+Response:
+• Patient id (if successfully POST request)
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/patient
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "first_name": "Test",
+ "family_name": "Test",
+ "gender": "M",
+ "date_of_birth": "1991-01-04",
+ "nationality": "Brazil",
+ "mobile_number": "051515151",
+ "document_type": "Passport",
+ "document_type_value": "0000000"
+}
+Sample response payload success: {
+ "patient_id ": 1,
+ "status": "Success"
+}
+Sample response payload error: {
+ "status": "Error: Not able to register the patient due to reason XXX"
+}
+Send Patient SMS
+Description: This method will be used to assist the mobile app with sending an SMS message to a 
+patient
+Authentication Type: JWT Bearer Token Authentication
+Method: POST
+URL: /mobileapp/sms
+Parameters:
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 15 of 52
+• Patient Id
+• Patient Mobile Number
+• Text Message
+Response:
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/patient/sms
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "patient_id": "124",
+ "mobile_number": "0509945237",
+ "text_message": "Sample SMS text message"
+}
+Sample response payload: {
+ "status ": "Success"
+}
+Get Patient Insurance
+Description: This method will be used to return all active insurances linked to a Patient.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+Response:
+• Patient Id
+• Insurance List
+o Id
+o Payor Code
+o Payor Description
+o Plan Code
+o Plan Description
+o Card No
+o Date Active From
+o Date Active To
+o Rank
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 16 of 52
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/patient/insurance?patientid=0505050
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample request payload: {
+ "patient_id": "0505050"
+}
+Sample response payload: {
+"patient_id": 0505050,
+"insurance_list": [
+{
+"id": "914141||1",
+"payor_code": "SGH01",
+"payor_description": "Self Pay",
+"plan_code": "PP01",
+"plan_description": "Self Pay - Cash",
+"card_no ": "",
+"date_from": "2022-01-01",
+"date_to": "2022-12-31",
+"rank": 1
+}
+"status": "Success"
+}
+Update Patient
+Description: This method will update patient information of an existing patient in TrakCare. Changes 
+are limited to: Gender, DOB, Email, Marital Status, Mobile Number
+Authentication Type: JWT Bearer Token Authentication
+Method: PUT
+Parameters:
+• Patient Id (required)
+• Email (optional)
+• DOB (optional)
+• Gender (optional)
+• Marital Status (optional)
+• Mobile Number (optional)
+Response:
+• Status
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 17 of 52
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/patient/
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample request payload: {
+"patient_id": "12345",
+"email": "test@hotmail.com"
+}
+Sample response payload: {
+ "status": "Success"
+}
+Appointment
+Supported Methods
+Direction Method Description
+Inbound GetFacilities This method will return the list of active hospitals in 
+TrakCare.
+Inbound GetSpecialities This method will return the list of all active specialities for a 
+specific hospital.
+Inbound GetPractitioners This method will return the list of active care providers with 
+schedules in TrakCare based in one speciality code.
+Inbound GetAvailablePractitioner This method will return the first available slot of a practitioner 
+in TrakCare.
+Inbound GetPractitionerSchedule This method will display the days for which a practitioner has
+slots regardless of whether they are free or booked for a 
+given month.
+Inbound GetPatientService This method will return the list of active services in TrakCare
+for a specific patient based on care provider and a speciality, 
+and a date.
+Inbound GetTimeslots This method will return the list of available slots in TrakCare
+for a specific care provider.
+Inbound BookAppointment This method will be used to book an appointment.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 18 of 52
+Inbound CancelAppointment This method will be used to cancel an appointment.
+Inbound GetAppointmentHistory This method will return the list of appointments for one 
+specific patient. 30 days will be the maximum number of 
+days allowed per request.
+Get Facilities
+Description: This method will return the list of active hospitals in TrakCare. 
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• None
+Response:
+• Hospital Code
+• Hospital Description
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/facility
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "hospital_list": [
+ {
+ "hospital_code": "1",
+ "hospital_description": "SGH 1"
+ },
+ {
+ "hospital_code": "2",
+ "hospital_description": "SGH 2"
+ }
+ ],
+ "status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 19 of 52
+Get Specialities
+Description: This method will return the list of all active specialities for a specific hospital. 
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Hospital Code (required)
+Response:
+• Speciality List
+o Speciality Code
+o Speciality Description
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/speciality?hospitalcode=1
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "hospital_code": "1",
+ "hospital_description": "SGH 1",
+ "speciality_list": [
+{
+ "speciality_code": "CAR",
+ "speciality_description": "Cardiology"
+ },
+ {
+ "speciality_code": "FF",
+ "speciality_description": "Family Medicine"
+ },
+ {
+ "speciality_code": "ONC",
+ "speciality_description": "Oncology"
+ }
+ ],
+ "status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 20 of 52
+Get Care Providers
+Description: This method will return the list of active care providers with schedules in TrakCare. 
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Speciality Code (required)
+Response:
+• Speciality Code
+• Speciality Description
+• Provider List
+o Care provider code
+o Care provider description
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/doctor?specialitycode=FF
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "speciality_code": "FF",
+ "speciality_description": "Family Medicine",
+ "provider_list": [
+{
+ "provider_code": "doctor1",
+ "provider_description": "Doctor 1",
+ },
+ {
+ "provider_code": "doctor2",
+ "provider_description": "Doctor 2",
+ },
+ {
+ "provider_code": "doctor3",
+ "provider_description": "Doctor 3",
+ },
+ ],
+ "Status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 21 of 52
+Get Available Practitioner
+Description: This method will return the earliest slot available for a practitioner
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Speciality Code (required)
+• Care Provider Code (required)
+• Date Time From (required)
+• Date Time To (required)
+Response:
+• Care Provider Code
+• Care Provider Description
+• Speciality Code
+• Speciality Description
+• Date Time From
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/availability?specialitycode=1&careprovidercode=1
+23&datefrom=2025-01-01
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "provider_code": "123",
+ "provider_description": "DR Test",
+ "speciality_code": "1",
+ "speciality_description": "Loc",
+ "date_time_from": "2025-09-24T15:20:00+04:00",
+ "status": "success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 22 of 52
+Get Practitioner Schedule
+Description: This method will return the days for which a practitioner has slots defined within a 
+month.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Speciality Code (required)
+• Care Provider Code (required)
+• Date From (required)
+• Date To (required)
+Response:
+• Care Provider Code
+• Care Provider Description
+• Speciality Code
+• Speciality Description
+• Schedule List
+o Effective Date From
+o Effective Date To
+o DOW
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/schedule?specialitycode=1&careprovidercode=12
+3&datefrom=2025-01-01&datefrom=2025-01-31
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "provider_code": "123",
+ "provider_description": "DR Test",
+ "speciality_code": "1",
+ "speciality_description": "Loc",
+ "schedule_list": [
+{
+"effective_date_from": "2025-01-01",
+"effective_date_to": "2025-01-07",
+"dow": "Monday","Tuesday"
+},
+ {
+"effective_date_from": "2025-01-08",
+"effective_date_to": "2025-01-31",
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 23 of 52
+"dow": "Thursday","Friday"
+ }
+ ],
+ "status": "Success"
+}
+Get Patient Service
+Description: This method will return the service that should be applicable for a patient to book based 
+on a specific date selected.
+The API determines the applicable service based on a 14-day rule. Two service types are defined:
+Consultation and Follow-up
+If the patient has had a consultation within the past 14 days, the API will return Follow-up.
+Otherwise, it will return Consultation.
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Care provider code (required)
+• Speciality code (required)
+• Appt Date (required)
+Response:
+• Service code
+• Service description
+• Type
+• Status
+Sample Request:
+https://api.3rdpartyurl.com/mobileapp/appointment/patientservice?patientId=123&providercode=docto
+r1&specialitycode=FF&apptdate=2025-01-01
+Sample Response: {
+ "provider_code": "doctor1",
+ "speciality_code":"FF"
+ "service_list": [
+ {
+"service_code": "Sch001",
+"service_description": "Consultation New Patient",
+"type": "Offline"
+ }
+ ],
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 24 of 52
+ "status": "Success"
+}
+Get Timeslots
+Description: This method will return the list of available slots in TrakCare for a specific care provider.
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Care provider code (required)
+• Speciality code (required)
+• Service code (required)
+• Date From (required)
+• Date To (optional - if not sent a default value will be considered)
+• Time From (optional)
+• Time To (optional)
+• Day of the week (optional)
+Response:
+• Date From
+• Date To
+• Slot List
+o Slot date
+o Slot start time
+o Slot end time
+o Slot booking id (will be used to book and cancel appointment)
+• Status
+Sample Request:
+https://api.3rdpartyurl.com/mobileapp/appointment/timeslot?providercode=doctor1&specialitycode=FF
+&servicecode=Sch001&datefrom=2021-03-03&dateto=2021-03-
+05&timefrom=08:00&timeto=17:00&dow=4
+Sample response payload: {
+ "date_from":"2021-03-03",
+ "date_to":"2021-03-05",
+ "slot_list": [
+ {
+ "slot_date": "2021-11-15",
+ "slot_from_time": "10:00",
+ "slot_to_time": "10:30",
+ "slot_booking_id": "7497||6938-65343-1000-12860-1"
+ },
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 25 of 52
+ {
+ "slot_date": "2021-11-15",
+ "slot_from_time": "11:00",
+ "slot_to_time": "11:30",
+ "slot_booking_id": "7497||6938-65343-1100-12860-1"
+ },
+ {
+ "slot_date": "2021-11-15",
+ "slot_from_time": "13:00",
+ "slot_to_time": "13:30",
+ "slot_booking_id": "7497||6938-65343-1300-12860-1"
+ }
+ ],
+ "status": "Success"
+}
+Book Appointment
+Description: This method will be used to book an appointment.
+Authentication type: JWT Bearer Token Authentication
+Method: POST
+Parameters:
+• Slot booking id (required)
+• Patient Id (required)
+Response:
+• Slot booking id
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/book
+Sample request payload: {
+"slot_booking_id":"7358||20150-65337-0900-12797-1",
+"patient_id": 12345
+}
+Sample response payload: {
+ "status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 26 of 52
+Cancel Appointment
+Description: This method will be used to cancel an appointment in TrakCare. In case of transferring 
+an appointment, this API will be called with a reason for cancellation as “RESCHEDULED”
+Authentication type: JWT Bearer Token Authentication
+Method: POST
+Parameters:
+• Slot booking id (required)
+• Reason for cancellation (required) – Supported codes will be provided by ISC team.
+Response:
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/cancel/
+Sample request payload: {
+"slot_booking_id":"7358||20150-65337-0900-12797-1",
+"reason_for_cancellation":"RESCHEDULED"
+}
+Sample response payload: {
+ "status": "Success"
+}
+Get Appointment History
+Description: This method will return the list of appointments for one specific patient. 30 days will be 
+the maximum number of days allowed per request.
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Hospital Code (required)
+• Date From (required)
+• Date To (required)
+Response:
+• Appointment List
+o Episode Number
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 27 of 52
+o Episode Id
+o Appointment Date
+o Appointment Time
+o Appointment Status
+o Speciality Code
+o Speciality Description
+o Care Provider Code
+o Care Provider Description
+o Service description
+o Slot Booking Id
+o Approval Status
+o Is Paid?
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/appointment/history?patientid=12345&hospitalcode=SGH01&da
+tefrom=2021-01-01&dateto=2021-02-28
+Sample response payload: {
+ "appointment_list": [
+ {
+"episode_number ": "OP1234000",
+"episode_id": "123",
+"appointment_date ": "2021-11-15",
+"appointment_time": "10:00",
+"appointment_status": "Booked",
+"speciality_code": "FF",
+"speciality_description": "Family Medicine",
+"care_provider_code": "Doc1",
+"care_provider_description": "SGH Doctor 1",
+"service_description": "New Visit",
+"slot_booking_id": "7497||6938-65343-1000-12860-1",
+"approval_status": "Approved",
+"is_paid": true
+ },
+ {
+"episode_number ": "OP1235000",
+"episode_id": "124",
+"appointment_date ": "2021-11-30",
+"appointment_time": "10:00",
+"appointment_status": "Cancelled",
+"speciality_code": "FF",
+"speciality_description": "Family Medicine",
+"care_provider_code": "Doc1",
+"care_provider_description": "SGH Doctor 1",
+"service_description": "Follow up",
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 28 of 52
+"slot_booking_id": "7497||6938-65342-1000-12860-1",
+"approval_status": "Pending",
+"is_paid": false 
+}
+ ],
+ "status": "Success"
+}
+Billing
+Supported Methods
+Direction Method Description
+Inbound GetServicePrice This method will return the amount to be paid for one 
+specific service/appointment or an order.
+Inbound PayService This method will be used to pay for an appointment or an 
+order of an outpatient episode.
+Inbound GetOutstandingAmount This method will return the outstanding amount to be 
+paid for an inpatient episode.
+Inbound SettleBill This method will be used to settle the bill of an inpatient 
+episode.
+Inbound GetTaxInvoice This endpoint will return a list of Tax Invoice for a certain 
+patient id and date range.
+Get Service Price
+Description: This method will return the amount to be paid for one specific service/appointment or an 
+order.
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Slot booking Id (required if order Id is empty)
+• Order Id (required if order slot booking Id is empty)
+• Patient Insurance Id (required)
+Response:
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/billing/price?slotBookingId=7358-20150-65337-0900-12798-
+1&patientInsuranceId=515151-1
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 29 of 52
+Sample response payload: {
+"slot_booking_id": "7358||20150-65337-0900-12798-1",
+"order_price": "100.00",
+"payor_share": "70.00",
+"patient_share": "30.00",
+"status ": "Success"
+}
+Payment
+Description: This API method is used to process payments for services linked to an outpatient 
+episode. The payment type can be either:
+Order payment (partial billing): The patient pays for a specific order, and the bill remains open for 
+additional charges. In this case the order Id will be sent as a parameter.
+Appointment payment (full settlement): The patient pays for an appointment, and the bill is fully settled 
+upon payment. In this case the slot Id of the appointment will be sent as a parameter.
+Authentication type: JWT Bearer Token Authentication
+Method: POST
+Parameters:
+• Transaction Id (required)
+• Amount Paid (required)
+• Payment Date (required)
+• Order Id (required)
+Response:
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/billing/payment
+Sample request payload: {
+"transaction_id":"7358-1",
+"amount_paid":"30.0",
+"payment_date":"2022-01-01",
+"slot_booking_id": "7358||20150-65337-0900-12798-1"
+}
+Sample response payload: {
+"status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 30 of 52
+Get Outstanding Amount
+Description: This method will return the outstanding amount to be paid for an inpatient episode. 
+Authentication type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Episode Number (required if patient id is empty)
+• Patient Id (required if episode number is empty)
+Response:
+• Episode Number
+• Outstanding Amount
+• Invoice Number
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/billing/outstanding?episodenumber=123
+Sample response payload: {
+"episode_no": "123",
+"outstanding_amount": "100.00",
+ "invoice_number": "INV00000001",
+"status ": "Success"
+}
+Settle Bill
+Description: This method will be used to settle a bill against an episode. API will default a specific 
+“Payment Method” in TrakCare for all the requests.
+This method will be called to settle an inpatient bill or an outpatient bill (patient paying for a 
+consultation). 
+Authentication type: JWT Bearer Token Authentication
+Method: POST
+Parameters:
+• Transaction Id (required)
+• Amount Paid (required)
+• Payment Date (required)
+• Episode Number (required if slot booking id is empty)
+• Slot Booking Id (required if episode number is empty)
+Response:
+• Status
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 31 of 52
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/billing/settlebill/
+Sample request payload: {
+"transaction_id":"7358-1",
+"amount_paid":"30.0",
+"payment_date":"2022-01-01",
+"episode_number": "123"
+}
+Sample response payload: {
+"status": "Success"
+}
+Get Tax Invoice
+Description: This endpoint will return a list of Tax Invoices for a certain patient id and date range. 
+Only Tax invoices (not cancelled) will be returned in the response of this endpoint.
+Only Patient (paid) TAX invoices will be returned in the response of this endpoint.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Date From (required)
+• Date To (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Episode Type (required)
+Response:
+• Invoice List
+o Episode Number
+o Invoice Id
+o Invoice Number
+o Invoice Amount
+o Invoice Date
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/billing/taxinvoice?patientid=1234&datefrom=2024-01-
+01&dateto=2024-01-30&episodetype=”O”
+Sample response payload: {
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 32 of 52
+ "invoice_list": [
+ {
+ "episode_number": "OP00000001",
+ "invoice_id": "141414||1",
+ "invoice_number": "INV00000001",
+"invoice_amount": "400.00",
+"invoice_date": "2024-01-01"
+ },
+ {
+ "episode_number": "OP00000555",
+ "invoice_id": "1515141||1",
+ "invoice_number": "INV00000022",
+ "invoice_amount": "3990.00",
+ "invoice_date": "2024-01-15"
+ }
+ ],
+ "status": "Success"
+}
+Health
+Supported Methods
+Direction Method Description
+Inbound GetPatientEpisodes This method will return the list of episodes for one 
+specific patient.
+Inbound GetMedicationOrder This method will return the list of active medications 
+prescribed for one specific patient or episode.
+Inbound GetPatientAllergies This method will return the list of active allergy for a 
+specific patient.
+Inbound GetLaboratoryOrder This method will return the list of laboratory orders for 
+one specific patient or episode.
+Inbound GetRadiologyOrder This method will return the list of radiology orders for one 
+specific patient or episode.
+Inbound GetDischargeSummary This method will return the list of authorized discharge 
+summary reports for specific patient or episode.
+Inbound GetSickLeave This method will return the list of authorized sick leave 
+reports for one specific patient or episode.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 33 of 52
+Inbound GetPrescriptions This endpoint will return a list of prescriptions for a 
+certain patient id and date range.
+Get Patient Episodes
+Description: This method will return the list of episodes for one specific patient.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Episode Status (optional)
+• Episode Type (optional)
+• Hospital Code (optional)
+• Date From
+• Date To
+Response:
+• Episode List
+o Episode Number
+o Episode Id
+o Episode Status
+o Episode Date
+o Episode Time
+o Episode Type
+o Hospital
+o Department
+o Care Provider Code
+o Care Provider Description
+o Discharge Date
+o Discharge Time
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/episode?patientid=12345&datefrom=2025-01-
+01&dateto=2025-01-10
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 34 of 52
+Sample response payload: {
+ "episode_list": [
+{
+"episode_number": "OP0001",
+"episode_id": 1,
+"episode_status": "Current",
+"episode_date": "2021-01-01",
+"episode_time": "08:00",
+"episode_type ": "Outpatient",
+"hospital": "SGH",
+"department": "Family Medicine",
+"care_provider_code": "Doc01",
+"care_provider_description": "SGH Doctor 01",
+"discharge_date": "",
+"discharge_time": ""
+ },
+ {
+"episode_number": "IP0001",
+"episode_id": 2,
+"episode_status": "Discharged",
+"episode_date": "2021-01-02",
+"episode_time": "08:00",
+"episode_type": "Inpatient",
+"hospital": "SGH",
+"department": "ICU",
+"care_provider_code": "Doc01",
+"care_provider_description": "SGH Doctor 01",
+"discharge_date": "2021-01-05",
+"discharge_time": "22:00"
+ },
+ {
+"episode_number": "EM0001",
+"episode_id": 3,
+"episode_status": "Discharged",
+"episode_date": "2021-02-03",
+"episode_time": "08:00",
+"episode_type": "Emergency",
+"hospital": "SGH",
+"department": "Emergency Department",
+"care_provider_code": "Doc01",
+"care_provider_description": "SGH Doctor 01",
+"discharge_date": "2021-02-03",
+"discharge_time": "10:00"
+ }
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 35 of 52
+ ],
+ "status": "Success"
+}
+Get Medication Order
+Description: This method will return the list of active medications prescribed for one specific patient 
+or episode. The method will return a maximum of 10 medications per page. If required, a new API 
+request will need to be sent requesting data for the following pages.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Page (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Start Date (optional)
+• Start Time (optional)
+• Episode Type (required)
+Response:
+• Medication List
+o Episode Number
+o Episode Id
+o Medication Description
+o Start Date
+o Start Time
+o Prescription Number
+o Ordering Provider
+o Quantity
+o UOM
+o Priority
+o Route
+o Duration
+o Status
+o Order Priority
+o Dispensing Date
+o Dispensing Time
+o English instructions
+o Arabic instructions
+o Approval Status
+• Item Count
+• Page
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 36 of 52
+• Total
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/medication?patientid=12345&page=1&episodetype=O
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "medication_list": [
+{
+"episode_number": "OP00001",
+"episode_Id": "1",
+"medication_description": "Amoxicillin",
+"start_date": "2021-01-01",
+"start_time": "08:00",
+"prescription_number": "O0000001",
+"ordering_provider": "Doctor SGH",
+"quantity": 2,
+"uom": "Capsule",
+"priority": "Urgent",
+"route": "Oral",
+"duration": "5 days",
+"status": "Verified",
+"order_priority": "Discharge Medication",
+"dispensing_date": "",
+"dispensing_time": "",
+"english_instructions": "",
+"arabic_instructions": "",
+"approval_status": "Approved"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"medication_description": "Propranolol 1 mg/mL Oral Suspension",
+"start_date": "2021-01-02",
+"start_time": "10:00",
+"prescription_number": "O0000002",
+"ordering_provider": "Doctor SGH",
+"quantity": 1,
+"uom": "Bottle",
+"priority": "Normal",
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 37 of 52
+"route": "Oral",
+"duration": "3 days",
+"status": "Executed",
+"order_priority": "Normal",
+"dispensing_date": "2021-01-02",
+"dispensing_time": "10:00",
+"english_instructions": "",
+"arabic_instructions": "",
+"approval_status": "N/A"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"medication_description": "Panadol 1mg/mL Oral",
+"start_date": "2021-02-02",
+"start_time": "11:00",
+"prescription_number": "O0000003",
+"ordering_provider": "Doctor SGH",
+"quantity": 5,
+"uom": "Capsule",
+"priority": "Urgent",
+"route": "Oral",
+"duration": "5 days",
+"status": "Verified",
+"order_priority": "Discharge Medication",
+"dispensing_date": "",
+"dispensing_time": "",
+"english_instructions": "",
+"arabic_instructions": "",
+"approval_status": "Rejected"
+ }
+ ],
+ "item_count": 3,
+ "page": 1,
+ "total ": 1,
+ "status": "Success"
+}
+Get Patient Allergies
+Description: This method will return the list of active allergies for a specific patient
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 38 of 52
+• Patient Id (required)
+Response:
+• Allergy List
+o Allergy Code
+o Allergy Description
+o On Set Date
+o Severity
+o Nature of Reaction
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/allergy?patientid=12345
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "allergy_list": [
+{
+"allergy_code": "PEN",
+"allergy_description": "Peanuts",
+"onset_date": "2021-01-01",
+"severity": "Moderate",
+"nature_of_reaction ": "Breathing Difficulties"
+ },
+ {
+"allergy_code": "MIL",
+"allergy_description": "Milk",
+"onset_date": "2021-01-05",
+"severity": "Rash - generalised",
+"nature_of_reaction ": "Severe"
+ },
+ {
+"allergy_code": "MED",
+"allergy_description": "Amoxicillin",
+"onset_date": "2021-01-05",
+"severity": "Life threatening response",
+"nature_of_reaction ": "Fatal"
+ },
+ ],
+ "status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 39 of 52
+Get Laboratory Order
+Description: This method will return the list of laboratory orders recorded for one specific patient or 
+episode. The method will return a maximum of 10 results per page. If required, a new API request will 
+need to be sent requesting data for the following pages.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Page (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Order Date (optional)
+• Order Time (optional)
+• Lab Episode Number (optional)
+• Episode Type (required)
+Response:
+• Order List
+o Episode Number
+o Episode Id
+o Order Id
+o Order Description
+o Ordered Doctor
+o Collection Date
+o Collection Time
+o Lab Episode Number
+o Specimen Number
+o Authorizing user
+o Result Date
+o Result Time
+o Approval Status
+o Price
+• Item Count
+• Page
+• Total
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/laboratory?patientid=12345&page=1&episodetype=O
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 40 of 52
+Sample response payload: {
+ "order_list": [
+{
+"episode_number": "OP00001",
+"episode_Id": "1",
+"order_id": "88811||1",
+"order_description": "Alanine Aminotransferase",
+"ordered_doctor ": "Doctor SGH 1",
+"collection_date": "2021-01-01",
+"collection_time": "14:00",
+"labepisode_number": 201031031,
+"specimen_number": "201031031-1",
+"authorizing_user": "Dr Lab user SGH 1",
+"authorizing_user": "Dr Lab user SGH 1",
+"result_date": "2021-01-02",
+"result_time": "00:00",
+"approval_status": "Approved"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"order_id": "88811||2",
+"order_description": "FBC – Full Blood Count",
+"ordered_doctor ": "Doctor SGH 1",
+"collection_date": "2021-01-01",
+"collection_time": "14:00",
+"labepisode_number": 201031031,
+"specimen_number": "201031031-1",
+"authorizing_user": "Dr Lab user SGH 1",
+"result_date": "2021-01-02",
+"result_time": "00:00",
+"approval_status": "N/A",
+"price": "30"
+ },
+ {
+"episode_number": "OP00002",
+"episode_Id": "2",
+"order_id": "88811||3",
+"order_description": "Glycosylated Hemoglobin",
+"ordered_doctor ": "Doctor SGH 1",
+"collection_date": "2021-01-05",
+"collection_time": "13:00",
+"labepisode_number": 20100101,
+"specimen_number": "20100101-1",
+"authorizing_user": "Dr Lab user SGH 1",
+"result_date": "2021-01-07",
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 41 of 52
+"result_time": "14:00",
+"approval_status": "Rejected",
+"price": "30",
+ }
+ ],
+ "item_count": 3,
+ "page": 1,
+ "total": 1,
+ "status": "Success"
+}
+Get Radiology Order
+Description: This method will return the list of radiology orders recorded for one specific patient or 
+episode.
+Note: This endpoint might be subject to change depending on the PACS integration
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Hospital Code (optional)
+• Episode Number (optional)
+• Order Date (optional)
+• Order Time (optional)
+• Episode Type (required)
+Response:
+• Order List
+o Episode Number
+o Episode Id
+o Order Id
+o Order Description
+o Ordered Doctor
+o Authorizing user
+o Result Date
+o Result Time
+o Approval Status
+o Price
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/radiology?patientid=12345&episodetype=”O”
+Headers: 
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 42 of 52
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "order_list": [
+{
+"episode_number": "OP00001",
+"episode_Id": "1",
+"order_id": "712320||1",
+"order_description": "X-Ray Chest",
+"ordered_doctor ": "Doctor SGH 1",
+"authorizing_user": "Dr RAD SGH 1",
+"result_date": "2022-01-01",
+"result_time": "00:00",
+"approval_status": "Approved"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"order_id": "712321||1",
+"order_description": "X-Ray Head",
+"ordered_doctor ": "Doctor SGH 1",
+"authorizing_user": "Dr RAD SGH 1",
+"result_date": "2022-01-01",
+"result_time": "14:00",
+"approval_status": "Approved"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"order_id": "712322||1",
+"order_description": "MRI Head",
+"ordered_doctor ": "Doctor SGH 1",
+"authorizing_user": "Dr RAD SGH 1",
+"result_date": "2021-01-07",
+"result_time": "14:00",
+"approval_status": "Patially Approved",
+"price": "40"
+ }
+ ],
+ "status": "Success"
+}
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 43 of 52
+Get Discharge Summary
+Description: This method will return the list of authorized discharge summary reports for one specific 
+patient or episode.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Authorized Date (optional)
+• Authorized Time (optional)
+• Episode Type (required)
+Response:
+• Document List
+o Episode Number
+o Episode Id
+o Document Id
+o Authorizing user
+o Authorized Date
+o Authorized Time
+• Status
+Sample request:
+https://api.3rdpartyurl.com/reports/mobileapp/health/dischargesummary?patientid=12345&episodetyp
+e=O
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "document_list": [
+{
+"episode_number": "OP00001",
+"episode_Id": "1",
+"document_id": 7714555,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 44 of 52
+"document_id": 7713335,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ },
+ {
+"episode_number": "OP00001",
+"episode_Id": "1",
+"document_id": 7711116,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ }
+ ],
+ "status": "Success"
+}
+Get Sick Leave
+Description: This method will return the list of authorized sick leave reports for one specific patient or 
+episode.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Authorized Date (optional)
+• Authorized Time (optional)
+• Episode Type (required)
+Response:
+• Document List
+o Episode Number
+o Episode Id
+o Document Id
+o Authorizing user
+o Authorized Date
+o Authorized Time
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/sickleave?patientid=12345&episodetype=O
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 45 of 52
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "document_list": [
+{
+"episode_number": "OP00001",
+"episode_id": "1",
+"document_id": 7714414,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ },
+ {
+"episode_number": "OP00001",
+"episode_id": "1",
+"document_id": 7714415,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ },
+ {
+"episode_number": "OP00001",
+"episode_id": "1",
+"document_id": 7714416,
+"authorizing_user": "Dr SGH 1",
+"authorized_date": "2021-01-02",
+"authorized_time": "00:00"
+ }
+ ],
+ "status": "Success"
+}
+Get Prescription
+Description: This endpoint will return a list of Episode-Wise Prescriptions for a certain patient id and 
+date range. Cancelled Prescriptions will not be returned in the response of this end point.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Patient Id (required)
+• Date From (required)
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 46 of 52
+• Date To (required)
+• Episode Number (optional)
+• Hospital Code (optional)
+• Episode Type (required)
+Response:
+• Prescription List
+o Episode Number
+o Prescription Status
+o Prescription Number
+o Prescription Orders
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/health/prescription?patientid=1234&datefrom=2024-01-
+01&dateto=2024-01-30
+Sample response payload: {
+ "document_list": [
+ {
+ "episode_number": "OP00000001",
+ "prescription_status ": "A"
+ "prescription_number": "O0000001",
+ "prescription_orders": "Amoxicillin, Paracetamol"
+ },
+ {
+ "episode_number": "OP00000005",
+ "prescription_status ": "P"
+ "prescription_number": "I0000004",
+ "prescription_orders": " Paracetamol"
+ }
+ ],
+ "status": "Success"
+}
+Reports
+Supported Methods
+Direction Method Description
+Inbound GetLaboratoryOrder This method will return the list of laboratory 
+orders for one specific patient or episode.
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 47 of 52
+Inbound GetLaboratoryReport This method will return a base64 stream 
+containing the PDF report for one specific 
+laboratory result
+Inbound GetRadiologyReport This method will return a PDF base 64 
+stream containing the result for one specific 
+order id.
+Inbound GetDischargeSummaryReport This method will return a PDF base 64 
+stream containing the discharge summary 
+report for one specific document id.
+Inbound GetSickLeaveReport This method will return a base64 stream 
+containing the PDF report for one specific 
+sick leave report.
+Inbound GetTaxInvoiceReport This method will return a base64 stream 
+containing the PDF report for one specific 
+(Tax Invoice) report.
+Inbound GetPrescriptionReport This method will return a base64 stream 
+containing the PDF report for one specific 
+Prescription report.
+Get Laboratory Report
+Description: This method will return a PDF base 64 stream containing the result for one specific 
+order id.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Order Id (required)
+Response:
+• PDFBase64
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/laboratory?orderid=88811-1
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 48 of 52
+}
+Get Radiology Report
+Description: This method will return a PDF base 64 stream containing the result for one specific 
+order id.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Order Id (required)
+Response:
+• PDFBase64
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/radiology?orderid=712322-1
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+}
+Get Discharge Summary Report
+Description: This method will return a PDF base 64 stream containing the discharge summary report 
+for one specific document id.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Document Id (required)
+Response:
+• PDFBase64
+• Status
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 49 of 52
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/dischargesummary?documentid=7713335
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+}
+Get Sick Leave Report
+Description: This method will return a PDF base 64 stream containing the sick leave report for one 
+specific document id.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Document Id (required)
+Response:
+• PDFBase64
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/sickleave?documentid=716514
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+}
+Get Tax Invoice Report
+Description: This method will return a base64 stream containing the PDF report for one specific 
+Payment Receipt (Tax Invoice) report.
+Authentication Type: JWT Bearer Token Authentication
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 50 of 52
+Method: GET
+Parameters:
+• Invoice Id (required)
+Response:
+• PDFBase64
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/taxinvoice?invoiceid=1515141||1
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+}
+Get Prescription Report
+Description: This method will return a base64 stream containing the PDF report for one specific 
+Prescription report.
+Authentication Type: JWT Bearer Token Authentication
+Method: GET
+Parameters:
+• Prescription number (required)
+Response:
+• PDFBase64
+• Status
+Sample request:
+https://api.3rdpartyurl.com/mobileapp/report/prescription?prescriptionnumber=O0000001
+Headers: 
+Content-Type: application/json 
+Authentication type: JWT Bearer Token Authentication
+Interface Specification – {Project Name} 2.0
+Confidential and proprietary. Printing renders document uncontrolled. Page 51 of 52
+Sample response payload: {
+ "pdf_base64": "BASE64STREAM CONTENT",
+ "status": "Success"
+}
+InterSystems UAE 
+Building 40, Level 7, Dubai Healthcare 
+City, Dubai - UAE
+Tel: +971 457 5700
+InterSystems.com
+InterSystems TrakCare, InterSystems HealthShare, InterSystems Caché, InterSystems Ensemble, and InterSystems 
+DeepSee are registered trademarks of InterSystems Corporation. Other product names are trademarks of their respective 
+vendors. Copyright © 2025 InterSystems Corporation. All rights reserved. 4-15
